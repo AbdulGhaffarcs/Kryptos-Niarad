@@ -1,0 +1,811 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NIARAD — Documentation</title>
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Syne:wght@300;400;700;800&display=swap" rel="stylesheet">
+<style>
+:root {
+  --green: #00FFAA;
+  --blue: #00C8FF;
+  --amber: #FFC800;
+  --red: #FF4466;
+  --bg: #060910;
+  --surface: #0C1018;
+  --border: #151D2A;
+  --text: #8A9BB0;
+  --text-bright: #C8D6E5;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html { scroll-behavior: smooth; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Syne', sans-serif;
+  font-weight: 300;
+  overflow-x: hidden;
+  cursor: none;
+}
+
+/* ── Custom cursor ── */
+#cursor {
+  position: fixed;
+  width: 6px; height: 6px;
+  background: var(--green);
+  border-radius: 50%;
+  pointer-events: none;
+  z-index: 9999;
+  transform: translate(-50%, -50%);
+  transition: transform 0.1s;
+  box-shadow: 0 0 12px var(--green);
+}
+#cursor-ring {
+  position: fixed;
+  width: 28px; height: 28px;
+  border: 1px solid rgba(0,255,170,0.3);
+  border-radius: 50%;
+  pointer-events: none;
+  z-index: 9998;
+  transform: translate(-50%, -50%);
+  transition: all 0.12s ease;
+}
+
+/* ── Scanline overlay ── */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background: repeating-linear-gradient(
+    0deg,
+    transparent,
+    transparent 2px,
+    rgba(0,0,0,0.03) 2px,
+    rgba(0,0,0,0.03) 4px
+  );
+  pointer-events: none;
+  z-index: 100;
+}
+
+/* ── Grid background ── */
+body::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(0,255,170,0.015) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0,255,170,0.015) 1px, transparent 1px);
+  background-size: 48px 48px;
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* ── Layout ── */
+.container {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 0 32px;
+  position: relative;
+  z-index: 1;
+}
+
+/* ── Hero ── */
+.hero {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  text-align: center;
+  position: relative;
+  padding: 80px 32px;
+}
+
+.hero-tag {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 10px;
+  letter-spacing: 6px;
+  color: var(--green);
+  opacity: 0;
+  animation: fadeUp 0.6s ease 0.3s forwards;
+}
+
+.hero-title {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: clamp(72px, 15vw, 140px);
+  font-weight: 400;
+  color: #fff;
+  letter-spacing: 24px;
+  line-height: 1;
+  margin: 24px 0 16px;
+  opacity: 0;
+  animation: fadeUp 0.8s ease 0.5s forwards;
+  text-shadow:
+    0 0 80px rgba(0,255,170,0.15),
+    0 0 160px rgba(0,255,170,0.05);
+}
+
+.hero-title span {
+  display: inline-block;
+  animation: glitch 8s infinite;
+}
+
+.hero-subtitle {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 11px;
+  letter-spacing: 5px;
+  color: var(--text);
+  opacity: 0;
+  animation: fadeUp 0.6s ease 0.8s forwards;
+}
+
+.hero-quote {
+  margin-top: 40px;
+  font-size: 15px;
+  font-style: italic;
+  color: #2A3A4A;
+  opacity: 0;
+  animation: fadeUp 0.6s ease 1s forwards;
+}
+
+.hero-scroll {
+  position: absolute;
+  bottom: 40px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 9px;
+  letter-spacing: 4px;
+  color: #1C2A3A;
+  animation: pulse 2s infinite;
+}
+.hero-scroll::after {
+  content: '';
+  display: block;
+  width: 1px;
+  height: 40px;
+  background: linear-gradient(var(--green), transparent);
+  margin: 8px auto 0;
+  animation: scanDown 2s infinite;
+}
+
+/* ── Section ── */
+.section {
+  padding: 80px 0;
+  border-top: 1px solid var(--border);
+  opacity: 0;
+  transform: translateY(30px);
+  transition: opacity 0.7s ease, transform 0.7s ease;
+}
+.section.visible { opacity: 1; transform: translateY(0); }
+
+.section-label {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 9px;
+  letter-spacing: 5px;
+  color: var(--green);
+  margin-bottom: 12px;
+}
+
+.section-title {
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--text-bright);
+  margin-bottom: 32px;
+  letter-spacing: 1px;
+}
+
+/* ── Feature grid ── */
+.feature-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 1px;
+  background: var(--border);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.feature-card {
+  background: var(--surface);
+  padding: 28px;
+  position: relative;
+  overflow: hidden;
+  transition: background 0.3s;
+}
+.feature-card::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0;
+  width: 2px; height: 0;
+  background: var(--accent, var(--green));
+  transition: height 0.4s ease;
+}
+.feature-card:hover { background: #0F1520; }
+.feature-card:hover::before { height: 100%; }
+
+.feature-icon {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 9px;
+  letter-spacing: 3px;
+  margin-bottom: 12px;
+}
+.feature-card:nth-child(1) .feature-icon { color: var(--green); --accent: var(--green); }
+.feature-card:nth-child(2) .feature-icon { color: var(--blue); --accent: var(--blue); }
+.feature-card:nth-child(3) .feature-icon { color: var(--amber); --accent: var(--amber); }
+.feature-card:nth-child(4) .feature-icon { color: var(--red); --accent: var(--red); }
+.feature-card:nth-child(5) .feature-icon { color: var(--green); --accent: var(--green); }
+.feature-card:nth-child(6) .feature-icon { color: var(--blue); --accent: var(--blue); }
+
+.feature-card h3 {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text-bright);
+  margin-bottom: 8px;
+  letter-spacing: 0.5px;
+}
+.feature-card p { font-size: 13px; line-height: 1.6; color: var(--text); }
+
+/* ── Tech stack ── */
+.stack-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 8px;
+}
+.stack-item {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 2px;
+  padding: 16px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  transition: border-color 0.3s, transform 0.3s;
+}
+.stack-item:hover { border-color: var(--green); transform: translateY(-2px); }
+.stack-layer {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 9px;
+  letter-spacing: 3px;
+  color: var(--green);
+}
+.stack-name {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text-bright);
+}
+
+/* ── File structure ── */
+.file-tree {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 28px;
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 13px;
+  line-height: 2;
+}
+.tree-line { display: flex; align-items: center; gap: 8px; }
+.tree-dir { color: var(--blue); }
+.tree-file { color: var(--text); }
+.tree-comment { color: #2A3A4A; font-size: 11px; margin-left: 8px; }
+.tree-indent { padding-left: 20px; }
+
+/* ── Install steps ── */
+.steps { display: flex; flex-direction: column; gap: 2px; }
+.step {
+  display: flex;
+  gap: 20px;
+  padding: 20px 24px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 2px;
+  transition: border-color 0.3s;
+  position: relative;
+  overflow: hidden;
+}
+.step:hover { border-color: #1C2A3A; }
+.step-num {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 11px;
+  color: var(--green);
+  min-width: 20px;
+  margin-top: 2px;
+}
+.step-content h4 { font-size: 15px; font-weight: 700; color: var(--text-bright); margin-bottom: 8px; }
+
+/* ── Code blocks ── */
+pre, code {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 12px;
+}
+pre {
+  background: #070A0E;
+  border: 1px solid var(--border);
+  border-radius: 2px;
+  padding: 16px 20px;
+  overflow-x: auto;
+  color: #6A8A6A;
+  line-height: 1.8;
+  position: relative;
+}
+pre .cmd { color: var(--green); }
+pre .comment { color: #2A3A4A; }
+pre .string { color: var(--amber); }
+pre .key { color: var(--blue); }
+
+/* ── Badge table ── */
+.badge-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 8px;
+}
+.badge-item {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 2px;
+  padding: 16px 20px;
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+}
+.badge-pill {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 9px;
+  letter-spacing: 1px;
+  padding: 3px 8px;
+  border-radius: 2px;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.pill-extraction { background: rgba(0,200,255,0.1); color: var(--blue); border: 1px solid rgba(0,200,255,0.3); }
+.pill-summary    { background: rgba(0,255,170,0.1); color: var(--green); border: 1px solid rgba(0,255,170,0.3); }
+.pill-general    { background: rgba(255,200,0,0.1);  color: var(--amber); border: 1px solid rgba(255,200,0,0.3); }
+.pill-niarad     { background: rgba(255,255,255,0.05); color: #fff; border: 1px solid rgba(255,255,255,0.1); }
+
+.badge-desc { font-size: 12px; line-height: 1.5; color: var(--text); }
+
+/* ── Troubleshoot ── */
+.trouble-list { display: flex; flex-direction: column; gap: 2px; }
+.trouble-item {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1px;
+  background: var(--border);
+  border-radius: 2px;
+  overflow: hidden;
+}
+.trouble-error {
+  background: var(--surface);
+  padding: 14px 18px;
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 11px;
+  color: var(--red);
+}
+.trouble-fix {
+  background: var(--surface);
+  padding: 14px 18px;
+  font-size: 13px;
+  color: var(--text);
+}
+.trouble-fix code {
+  background: #070A0E;
+  padding: 1px 6px;
+  border-radius: 2px;
+  color: var(--green);
+  font-size: 11px;
+}
+
+/* ── Footer ── */
+.footer {
+  padding: 60px 0 80px;
+  text-align: center;
+  border-top: 1px solid var(--border);
+}
+.footer-title {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 32px;
+  letter-spacing: 12px;
+  color: #fff;
+  opacity: 0.1;
+  margin-bottom: 16px;
+}
+.footer-text {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 10px;
+  letter-spacing: 4px;
+  color: #1C2A3A;
+}
+
+/* ── Animations ── */
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 0.3; }
+  50% { opacity: 1; }
+}
+
+@keyframes scanDown {
+  0% { transform: scaleY(0); transform-origin: top; opacity: 1; }
+  100% { transform: scaleY(1); transform-origin: top; opacity: 0; }
+}
+
+@keyframes glitch {
+  0%, 92%, 100% { text-shadow: 0 0 80px rgba(0,255,170,0.15); transform: none; }
+  93% { text-shadow: -2px 0 var(--red), 2px 0 var(--blue); transform: skewX(-1deg); }
+  94% { text-shadow: 2px 0 var(--red), -2px 0 var(--blue); transform: skewX(1deg); }
+  95% { text-shadow: 0 0 80px rgba(0,255,170,0.15); transform: none; }
+  96% { text-shadow: -1px 0 var(--green); transform: skewX(-0.5deg); }
+  97% { text-shadow: 0 0 80px rgba(0,255,170,0.15); transform: none; }
+}
+
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
+}
+
+.blink { animation: blink 1s step-end infinite; }
+
+/* ── Nav dots ── */
+.nav-dots {
+  position: fixed;
+  right: 28px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  z-index: 50;
+}
+.nav-dot {
+  width: 4px; height: 4px;
+  background: #1C2A3A;
+  border-radius: 50%;
+  cursor: none;
+  transition: all 0.3s;
+}
+.nav-dot.active { background: var(--green); box-shadow: 0 0 8px var(--green); height: 20px; border-radius: 2px; }
+.nav-dot:hover { background: var(--green); }
+
+/* ── Top bar ── */
+.topbar {
+  position: fixed;
+  top: 0; left: 0; right: 0;
+  height: 48px;
+  background: rgba(6,9,16,0.8);
+  backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 32px;
+  z-index: 50;
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 10px;
+  letter-spacing: 3px;
+}
+.topbar-logo { color: var(--green); }
+.topbar-status { color: #1C2A3A; display: flex; gap: 24px; }
+.topbar-status span { color: var(--text); }
+.topbar-status .on { color: var(--green); }
+</style>
+</head>
+<body>
+
+<div id="cursor"></div>
+<div id="cursor-ring"></div>
+
+<!-- Top bar -->
+<div class="topbar">
+  <span class="topbar-logo">NIARAD<span class="blink">_</span></span>
+  <div class="topbar-status">
+    <span>OFFLINE SECURE</span>
+    <span class="on">◆ LOCAL LLM</span>
+    <span>ZERO TELEMETRY</span>
+  </div>
+</div>
+
+<!-- Nav dots -->
+<nav class="nav-dots" id="navDots">
+  <div class="nav-dot active" data-section="0"></div>
+  <div class="nav-dot" data-section="1"></div>
+  <div class="nav-dot" data-section="2"></div>
+  <div class="nav-dot" data-section="3"></div>
+  <div class="nav-dot" data-section="4"></div>
+  <div class="nav-dot" data-section="5"></div>
+  <div class="nav-dot" data-section="6"></div>
+</nav>
+
+<!-- Hero -->
+<section class="hero" id="s0">
+  <div class="hero-tag">// DOCUMENTATION v2.0</div>
+  <h1 class="hero-title"><span>NIARAD</span></h1>
+  <p class="hero-subtitle">OFFLINE AI COMMAND CENTER // PRIVACY-FIRST RAG SYSTEM</p>
+  <p class="hero-quote">"Information is the resolution of uncertainty."</p>
+  <div class="hero-scroll">SCROLL<br></div>
+</section>
+
+<!-- Features -->
+<section class="section" id="s1">
+  <div class="container">
+    <div class="section-label">// 01 — CAPABILITIES</div>
+    <h2 class="section-title">What NIARAD Does</h2>
+    <div class="feature-grid">
+      <div class="feature-card">
+        <div class="feature-icon">EXTRACTION</div>
+        <h3>Document Mining</h3>
+        <p>Pulls specific facts, dates, venues, and tables from your uploaded files with surgical precision.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">SYNTHESIS</div>
+        <h3>Concept Intelligence</h3>
+        <p>Transforms complex lecture slides and notes into structured, educational summaries.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">FREE TIER</div>
+        <h3>General Chat</h3>
+        <p>Answer general knowledge questions without uploading any files. 10 free messages per session.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">AUTO-ROUTE</div>
+        <h3>Smart Routing</h3>
+        <p>Automatically classifies every query as EXTRACTION or SUMMARY — no manual mode switching.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">AIR-GAPPED</div>
+        <h3>Total Privacy</h3>
+        <p>Everything runs on your machine. Zero cloud calls, zero telemetry, zero data leakage.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">PERSISTENT</div>
+        <h3>Local Vault</h3>
+        <p>Indexed documents are saved via FAISS and persist across sessions. Upload once, query forever.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Tech Stack -->
+<section class="section" id="s2">
+  <div class="container">
+    <div class="section-label">// 02 — TECH STACK</div>
+    <h2 class="section-title">Built With</h2>
+    <div class="stack-grid">
+      <div class="stack-item"><span class="stack-layer">UI</span><span class="stack-name">Streamlit</span></div>
+      <div class="stack-item"><span class="stack-layer">LLM</span><span class="stack-name">llama3.2</span></div>
+      <div class="stack-item"><span class="stack-layer">EMBEDDINGS</span><span class="stack-name">nomic-embed-text</span></div>
+      <div class="stack-item"><span class="stack-layer">RUNTIME</span><span class="stack-name">Ollama</span></div>
+      <div class="stack-item"><span class="stack-layer">VECTOR STORE</span><span class="stack-name">FAISS (local)</span></div>
+      <div class="stack-item"><span class="stack-layer">RAG FRAMEWORK</span><span class="stack-name">LangChain</span></div>
+      <div class="stack-item"><span class="stack-layer">PDF</span><span class="stack-name">PyMuPDF</span></div>
+      <div class="stack-item"><span class="stack-layer">PPTX</span><span class="stack-name">python-pptx</span></div>
+    </div>
+
+    <br><br>
+    <h3 style="font-size:16px; color:var(--text-bright); margin-bottom:20px; font-weight:700;">Project Structure</h3>
+    <div class="file-tree">
+      <div class="tree-line"><span class="tree-dir">Local_RAG_Bot/</span></div>
+      <div class="tree-indent">
+        <div class="tree-line"><span class="tree-file">├── app.py</span><span class="tree-comment">// Main Streamlit application</span></div>
+        <div class="tree-line"><span class="tree-dir">├── core/</span></div>
+        <div class="tree-indent">
+          <div class="tree-line"><span class="tree-file">│ ├── loaders.py</span><span class="tree-comment">// File parsing & chunking</span></div>
+          <div class="tree-line"><span class="tree-file">│ ├── vector_store.py</span><span class="tree-comment">// FAISS index management</span></div>
+          <div class="tree-line"><span class="tree-file">│ └── logic_engine.py</span><span class="tree-comment">// LLM chains & routing</span></div>
+        </div>
+        <div class="tree-line"><span class="tree-dir">├── faiss_index/</span><span class="tree-comment">// Auto-created on first upload</span></div>
+        <div class="tree-line"><span class="tree-dir">└── .streamlit/</span></div>
+        <div class="tree-indent">
+          <div class="tree-line"><span class="tree-file">  └── config.toml</span><span class="tree-comment">// Theme config (dark mode)</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Installation -->
+<section class="section" id="s3">
+  <div class="container">
+    <div class="section-label">// 03 — INSTALLATION</div>
+    <h2 class="section-title">Get Running in 5 Steps</h2>
+    <div class="steps">
+
+      <div class="step">
+        <span class="step-num">01</span>
+        <div class="step-content">
+          <h4>Clone the Repository</h4>
+          <pre><span class="cmd">git clone</span> https://github.com/AbdulGhaffarcs/Kryptos-Niarad.git
+<span class="cmd">cd</span> Kryptos-Niarad</pre>
+        </div>
+      </div>
+
+      <div class="step">
+        <span class="step-num">02</span>
+        <div class="step-content">
+          <h4>Install Python Dependencies</h4>
+          <pre><span class="cmd">pip install</span> streamlit langchain langchain-community langchain-ollama
+<span class="cmd">pip install</span> langchain-core langchain-text-splitters faiss-cpu
+<span class="cmd">pip install</span> pymupdf python-pptx openpyxl docx2txt</pre>
+        </div>
+      </div>
+
+      <div class="step">
+        <span class="step-num">03</span>
+        <div class="step-content">
+          <h4>Pull Ollama Models</h4>
+          <pre><span class="cmd">ollama pull</span> llama3.2
+<span class="cmd">ollama pull</span> nomic-embed-text</pre>
+        </div>
+      </div>
+
+      <div class="step">
+        <span class="step-num">04</span>
+        <div class="step-content">
+          <h4>Create Theme Config</h4>
+          <pre><span class="comment"># Create .streamlit/config.toml</span>
+[<span class="key">theme</span>]
+<span class="key">base</span> = <span class="string">"dark"</span>
+<span class="key">backgroundColor</span> = <span class="string">"#080B0F"</span>
+<span class="key">secondaryBackgroundColor</span> = <span class="string">"#0D1117"</span>
+<span class="key">textColor</span> = <span class="string">"#C8D6E5"</span>
+<span class="key">primaryColor</span> = <span class="string">"#00FFAA"</span></pre>
+        </div>
+      </div>
+
+      <div class="step">
+        <span class="step-num">05</span>
+        <div class="step-content">
+          <h4>Launch NIARAD</h4>
+          <pre><span class="cmd">streamlit run</span> app.py</pre>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<!-- Usage -->
+<section class="section" id="s4">
+  <div class="container">
+    <div class="section-label">// 04 — USAGE</div>
+    <h2 class="section-title">Response Modes</h2>
+    <div class="badge-grid">
+      <div class="badge-item">
+        <span class="badge-pill pill-extraction">EXTRACTION</span>
+        <span class="badge-desc">Pulled specific facts, dates, or tables directly from your indexed documents.</span>
+      </div>
+      <div class="badge-item">
+        <span class="badge-pill pill-summary">SUMMARY</span>
+        <span class="badge-desc">Explained a concept or summarized content from your uploaded material.</span>
+      </div>
+      <div class="badge-item">
+        <span class="badge-pill pill-general">GENERAL MODE</span>
+        <span class="badge-desc">Answered from base LLM knowledge. No documents indexed yet.</span>
+      </div>
+      <div class="badge-item">
+        <span class="badge-pill pill-niarad">NIARAD</span>
+        <span class="badge-desc">Small talk or greeting — skips routing for instant response.</span>
+      </div>
+    </div>
+
+    <br><br>
+    <h3 style="font-size:16px; color:var(--text-bright); margin-bottom:20px; font-weight:700;">Supported File Types</h3>
+    <div class="stack-grid">
+      <div class="stack-item"><span class="stack-layer">DOCUMENT</span><span class="stack-name">.pdf</span></div>
+      <div class="stack-item"><span class="stack-layer">WORD</span><span class="stack-name">.docx</span></div>
+      <div class="stack-item"><span class="stack-layer">SLIDES</span><span class="stack-name">.pptx</span></div>
+      <div class="stack-item"><span class="stack-layer">SPREADSHEET</span><span class="stack-name">.xlsx</span></div>
+      <div class="stack-item"><span class="stack-layer">DATA</span><span class="stack-name">.csv</span></div>
+    </div>
+  </div>
+</section>
+
+<!-- Performance -->
+<section class="section" id="s5">
+  <div class="container">
+    <div class="section-label">// 05 — PERFORMANCE</div>
+    <h2 class="section-title">Speed Notes</h2>
+    <div class="feature-grid">
+      <div class="feature-card">
+        <div class="feature-icon" style="color:var(--amber)">COLD START</div>
+        <h3>First Message</h3>
+        <p>20–60 seconds as Ollama loads the model into RAM. All subsequent messages are much faster.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon" style="color:var(--green)">GREETINGS</div>
+        <h3>Small Talk</h3>
+        <p>1 LLM call only. Router is bypassed entirely for "hi", "hello", and similar phrases.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon" style="color:var(--blue)">RAG QUERIES</div>
+        <h3>Document Questions</h3>
+        <p>2 LLM calls: one to classify the query, one to generate the answer from context.</p>
+      </div>
+    </div>
+
+    <br><br>
+    <div class="section-label" style="margin-bottom:16px;">// TROUBLESHOOTING</div>
+    <div class="trouble-list">
+      <div class="trouble-item">
+        <div class="trouble-error">ModuleNotFoundError: faiss</div>
+        <div class="trouble-fix">Run <code>pip install faiss-cpu</code></div>
+      </div>
+      <div class="trouble-item">
+        <div class="trouble-error">cannot import langchain.schema</div>
+        <div class="trouble-fix">Use <code>from langchain_core.documents import Document</code></div>
+      </div>
+      <div class="trouble-item">
+        <div class="trouble-error">Bot slow on first message</div>
+        <div class="trouble-fix">Normal — Ollama loading model into RAM. Wait 30–60s.</div>
+      </div>
+      <div class="trouble-item">
+        <div class="trouble-error">No text extracted (PPTX)</div>
+        <div class="trouble-fix">Ensure file is <code>.pptx</code> not legacy <code>.ppt</code> format.</div>
+      </div>
+      <div class="trouble-item">
+        <div class="trouble-error">UI shows in light theme</div>
+        <div class="trouble-fix">Create <code>.streamlit/config.toml</code> with <code>base = "dark"</code></div>
+      </div>
+      <div class="trouble-item">
+        <div class="trouble-error">unhashable type: 'dict' error</div>
+        <div class="trouble-fix">Replace <code>{{"{{"}}key{{"}}"}}</code> with <code>{"{key}"}</code> in chain dicts inside logic_engine.py</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Footer -->
+<footer class="footer" id="s6">
+  <div class="container">
+    <div class="footer-title">NIARAD</div>
+    <div class="footer-text">BUILT FOR SUKKUR IBA // OFFLINE // AIR-GAPPED // YOURS</div>
+  </div>
+</footer>
+
+<script>
+// Cursor
+const cursor = document.getElementById('cursor');
+const ring = document.getElementById('cursor-ring');
+let mx = 0, my = 0, rx = 0, ry = 0;
+document.addEventListener('mousemove', e => { mx = e.clientX; my = e.clientY; });
+function animCursor() {
+  cursor.style.left = mx + 'px'; cursor.style.top = my + 'px';
+  rx += (mx - rx) * 0.15; ry += (my - ry) * 0.15;
+  ring.style.left = rx + 'px'; ring.style.top = ry + 'px';
+  requestAnimationFrame(animCursor);
+}
+animCursor();
+document.addEventListener('mousedown', () => { ring.style.transform = 'translate(-50%,-50%) scale(0.6)'; });
+document.addEventListener('mouseup', () => { ring.style.transform = 'translate(-50%,-50%) scale(1)'; });
+
+// Scroll reveal
+const sections = document.querySelectorAll('.section');
+const obs = new IntersectionObserver(entries => {
+  entries.forEach(e => { if (e.isIntersecting) e.target.classList.add('visible'); });
+}, { threshold: 0.1 });
+sections.forEach(s => obs.observe(s));
+
+// Nav dots
+const allSections = ['s0','s1','s2','s3','s4','s5','s6'].map(id => document.getElementById(id));
+const dots = document.querySelectorAll('.nav-dot');
+dots.forEach((dot, i) => {
+  dot.addEventListener('click', () => allSections[i].scrollIntoView({ behavior: 'smooth' }));
+});
+const navObs = new IntersectionObserver(entries => {
+  entries.forEach(e => {
+    if (e.isIntersecting) {
+      const idx = allSections.indexOf(e.target);
+      dots.forEach((d, i) => d.classList.toggle('active', i === idx));
+    }
+  });
+}, { threshold: 0.5 });
+allSections.forEach(s => s && navObs.observe(s));
+</script>
+</body>
+</html>
