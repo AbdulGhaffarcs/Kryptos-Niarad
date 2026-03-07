@@ -64,7 +64,7 @@ Question: {{question}}
 Answer:""")
 
     return (
-        {{"context": retriever, "question": RunnablePassthrough()}}
+        {"context": retriever, "question": RunnablePassthrough()}
         | prompt
         | llm
         | StrOutputParser()
@@ -77,11 +77,11 @@ def get_small_talk_chain():
 Respond to this greeting or small talk briefly in 1-2 sentences.
 You may mention you're ready to help analyze documents or answer questions.
 
-Message: {{question}}
+Message: {question}
 Response:""")
 
     return (
-        {{"question": RunnablePassthrough()}}
+        {"question": RunnablePassthrough()}
         | prompt
         | llm
         | StrOutputParser()
@@ -98,12 +98,12 @@ Rules:
   tell the user to upload files via the sidebar for document-aware answers.
 - Never fabricate specific facts you don't know.
 
-Question: {{question}}
+Question: {question}
 
 Answer:""")
 
     return (
-        {{"question": RunnablePassthrough()}}
+        {"question": RunnablePassthrough()}
         | prompt
         | llm
         | StrOutputParser()
