@@ -9,7 +9,6 @@
 ![Version](https://img.shields.io/badge/Version-2.0_alpha-000000?style=flat-square&labelColor=060910&color=FF4466)
 ![Python](https://img.shields.io/badge/Python-3.10+-000000?style=flat-square&logo=python&logoColor=00FFAA&labelColor=060910&color=1C2A3A)
 ![Streamlit](https://img.shields.io/badge/Streamlit-App-000000?style=flat-square&logo=streamlit&logoColor=00FFAA&labelColor=060910&color=1C2A3A)
-![Ollama](https://img.shields.io/badge/Ollama-Local_LLM-000000?style=flat-square&logoColor=00FFAA&labelColor=060910&color=1C2A3A)
 ![FAISS](https://img.shields.io/badge/FAISS-Vector_Store-000000?style=flat-square&logoColor=00FFAA&labelColor=060910&color=1C2A3A)
 ![LangChain](https://img.shields.io/badge/LangChain-RAG-000000?style=flat-square&logoColor=00FFAA&labelColor=060910&color=1C2A3A)
 ![License](https://img.shields.io/badge/License-Personal_Use-000000?style=flat-square&labelColor=060910&color=1C2A3A)
