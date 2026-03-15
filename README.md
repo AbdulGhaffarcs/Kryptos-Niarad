@@ -5,6 +5,8 @@
 
 <br/>
 
+![Status](https://img.shields.io/badge/Status-Under_Development-000000?style=flat-square&logoColor=FFC800&labelColor=060910&color=FFC800)
+![Version](https://img.shields.io/badge/Version-2.0_alpha-000000?style=flat-square&labelColor=060910&color=FF4466)
 ![Python](https://img.shields.io/badge/Python-3.10+-000000?style=flat-square&logo=python&logoColor=00FFAA&labelColor=060910&color=1C2A3A)
 ![Streamlit](https://img.shields.io/badge/Streamlit-App-000000?style=flat-square&logo=streamlit&logoColor=00FFAA&labelColor=060910&color=1C2A3A)
 ![Ollama](https://img.shields.io/badge/Ollama-Local_LLM-000000?style=flat-square&logoColor=00FFAA&labelColor=060910&color=1C2A3A)
