@@ -1,7 +1,7 @@
 import streamlit as st
 import os
 import tempfile
-from core.logic_engine import FREE_TIER_LIMIT, is_small_talk
+from core.logic_engine import is_small_talk, is_off_topic, AVAILABLE_MODELS
 
 @st.cache_resource
 def get_system_engine():
@@ -19,6 +19,12 @@ def get_system_engine():
         "direct_chain":     get_direct_chain,
         "small_talk_chain": get_small_talk_chain,
     }
+
+@st.cache_resource
+def get_llm(model_id: str):
+    """Load and cache the selected HuggingFace model. Reloads only if model changes."""
+    from core.logic_engine import load_llm
+    return load_llm(model_id)
 
 st.set_page_config(
     page_title="NIARAD | AI Command Center",
@@ -50,9 +56,7 @@ section[data-testid="stSidebar"] > div,
     color: #C8D6E5 !important;
     font-family: 'Rajdhani', sans-serif !important;
 }
-p, h1, h2, h3, h4, h5, span, label, div {
-    color: #C8D6E5 !important;
-}
+p, h1, h2, h3, h4, h5, span, label, div { color: #C8D6E5 !important; }
 .stButton > button {
     background: transparent !important;
     border: 1px solid #00FFAA !important;
@@ -107,6 +111,7 @@ hr { border-color: #1C2A3A !important; }
 .stSpinner > div { border-top-color: #00FFAA !important; }
 .stProgress > div > div { background-color: #00FFAA !important; }
 [data-testid="stAlert"] { background-color: #0D1117 !important; border-color: #1C2A3A !important; }
+[data-testid="stSelectbox"] > div { background-color: #0D1117 !important; border-color: #1C2A3A !important; }
 ::-webkit-scrollbar { width: 4px; }
 ::-webkit-scrollbar-track { background: #080B0F; }
 ::-webkit-scrollbar-thumb { background: #1C2A3A; border-radius: 2px; }
@@ -123,6 +128,13 @@ hr { border-color: #1C2A3A !important; }
 .mode-extraction { background: rgba(0,200,255,0.12) !important; color: #00C8FF !important; border: 1px solid #00C8FF50 !important; }
 .mode-summary    { background: rgba(0,255,170,0.12) !important; color: #00FFAA !important;  border: 1px solid #00FFAA50 !important; }
 .mode-direct     { background: rgba(255,200,0,0.12) !important; color: #FFC800 !important;  border: 1px solid #FFC80050 !important; }
+.model-tag {
+    font-family: 'Share Tech Mono', monospace !important;
+    font-size: 9px !important;
+    letter-spacing: 2px !important;
+    color: #2A4A6A !important;
+    margin-top: 4px !important;
+}
 .vault-active   { color: #00FFAA !important; font-family: 'Share Tech Mono', monospace !important; font-size: 11px !important; }
 .vault-inactive { color: #FF4466 !important; font-family: 'Share Tech Mono', monospace !important; font-size: 11px !important; }
 .tier-bar-wrap {
@@ -175,8 +187,8 @@ hr { border-color: #1C2A3A !important; }
 defaults = {
     "chat_active": False,
     "messages": [],
-    "free_messages_used": 0,
     "vault_has_docs": False,
+    "selected_model_name": list(AVAILABLE_MODELS.keys())[0],
 }
 for k, v in defaults.items():
     if k not in st.session_state:
@@ -193,27 +205,45 @@ with st.sidebar:
     st.markdown("### 🛡️ VAULT CONTROLS")
     st.divider()
 
+    # ── Model Selector ──
+    st.markdown(
+        "<div style='font-family:Share Tech Mono,monospace; font-size:9px; "
+        "letter-spacing:3px; color:#2A4A6A; margin-bottom:6px;'>AI MODEL</div>",
+        unsafe_allow_html=True
+    )
+    selected_model_name = st.selectbox(
+        "Model",
+        options=list(AVAILABLE_MODELS.keys()),
+        index=list(AVAILABLE_MODELS.keys()).index(st.session_state.selected_model_name),
+        label_visibility="collapsed"
+    )
+
+    if selected_model_name != st.session_state.selected_model_name:
+        st.session_state.selected_model_name = selected_model_name
+        st.cache_resource.clear()
+        st.rerun()
+
+    model_id = AVAILABLE_MODELS[selected_model_name]
+
+    # Load model with spinner
+    with st.spinner("Loading model..."):
+        try:
+            llm = get_llm(model_id)
+            st.markdown(
+                "<div class='model-tag'>◆ MODEL LOADED</div>",
+                unsafe_allow_html=True
+            )
+        except Exception as e:
+            st.error("⚠ Failed to load model: " + str(e))
+            llm = None
+
+    st.divider()
+
+    # Vault status
     if st.session_state.vault_has_docs:
         st.markdown('<span class="vault-active">◆ VAULT ONLINE</span>', unsafe_allow_html=True)
     else:
-        st.markdown('<span class="vault-inactive">◇ VAULT EMPTY</span>', unsafe_allow_html=True)
-
-    if not st.session_state.vault_has_docs:
-        used = st.session_state.free_messages_used
-        remaining = max(0, FREE_TIER_LIMIT - used)
-        pct = min(100, int((used / FREE_TIER_LIMIT) * 100))
-        bar_color = "#00FFAA" if pct < 70 else "#FFC800" if pct < 90 else "#FF4466"
-        # NOTE: plain st.markdown string — no .format(), no f-string — safe from brace errors
-        tier_html = (
-            "<div style='margin: 8px 0 4px;'>"
-            "<span style='font-family:Share Tech Mono,monospace; font-size:10px; color:#3A4A5A;'>"
-            "FREE TIER — " + str(remaining) + "/" + str(FREE_TIER_LIMIT) + " REMAINING"
-            "</span></div>"
-            "<div class='tier-bar-wrap'>"
-            "<div class='tier-bar-fill' style='width:" + str(pct) + "%; background:" + bar_color + ";'></div>"
-            "</div>"
-        )
-        st.markdown(tier_html, unsafe_allow_html=True)
+        st.markdown('<span class="vault-inactive">◇ VAULT EMPTY — Chatbot mode active</span>', unsafe_allow_html=True)
 
     st.markdown("<br>", unsafe_allow_html=True)
 
@@ -264,7 +294,6 @@ with st.sidebar:
 
     if st.button("✕ CLEAR HISTORY"):
         st.session_state.messages = []
-        st.session_state.free_messages_used = 0
         st.session_state.chat_active = False
         st.rerun()
 
@@ -291,8 +320,7 @@ if not st.session_state.chat_active:
             "<div style='font-family:Share Tech Mono,monospace; font-size:10px; color:#00C8FF; letter-spacing:3px; margin-bottom:12px;'>EXTRACTION</div>"
             "<p style='font-size:15px; color:#C8D6E5; margin:0 0 8px;'>Schedule & Data Mining</p>"
             "<p style='font-size:13px; color:#3A4A5A; margin:0;'>Parse exam timetables, venues, and specific facts from uploaded documents.</p>"
-            "</div>",
-            unsafe_allow_html=True
+            "</div>", unsafe_allow_html=True
         )
     with col2:
         st.markdown(
@@ -300,19 +328,15 @@ if not st.session_state.chat_active:
             "<div style='font-family:Share Tech Mono,monospace; font-size:10px; color:#00FFAA; letter-spacing:3px; margin-bottom:12px;'>SYNTHESIS</div>"
             "<p style='font-size:15px; color:#C8D6E5; margin:0 0 8px;'>Concept Intelligence</p>"
             "<p style='font-size:13px; color:#3A4A5A; margin:0;'>Turn complex lecture slides and notes into clear, structured summaries.</p>"
-            "</div>",
-            unsafe_allow_html=True
+            "</div>", unsafe_allow_html=True
         )
     with col3:
         st.markdown(
             "<div class='glass-card'>"
-            "<div style='font-family:Share Tech Mono,monospace; font-size:10px; color:#FFC800; letter-spacing:3px; margin-bottom:12px;'>FREE TIER</div>"
-            "<p style='font-size:15px; color:#C8D6E5; margin:0 0 8px;'>General AI Mode</p>"
-            "<p style='font-size:13px; color:#3A4A5A; margin:0;'>Chat with NIARAD without uploading files. Up to "
-            + str(FREE_TIER_LIMIT) +
-            " free messages per session.</p>"
-            "</div>",
-            unsafe_allow_html=True
+            "<div style='font-family:Share Tech Mono,monospace; font-size:10px; color:#FFC800; letter-spacing:3px; margin-bottom:12px;'>CHATBOT</div>"
+            "<p style='font-size:15px; color:#C8D6E5; margin:0 0 8px;'>Always Available</p>"
+            "<p style='font-size:13px; color:#3A4A5A; margin:0;'>Chat freely on any topic — no files needed. Upload docs to unlock document-aware answers.</p>"
+            "</div>", unsafe_allow_html=True
         )
 
     st.markdown("<br><br>", unsafe_allow_html=True)
@@ -322,13 +346,62 @@ if not st.session_state.chat_active:
             st.session_state.chat_active = True
             st.rerun()
 
+    # ── Guidelines Card ──
+    st.markdown("<br>", unsafe_allow_html=True)
+    st.markdown(
+        "<div style='border:1px solid #1C2A3A; border-radius:4px; padding:28px 32px; background:rgba(13,17,23,0.6);'>"
+
+        "<div style='font-family:Share Tech Mono,monospace; font-size:9px; letter-spacing:5px; "
+        "color:#00FFAA; margin-bottom:20px;'>// USAGE GUIDELINES</div>"
+
+        "<div style='display:grid; grid-template-columns:1fr 1fr; gap:24px;'>"
+
+        # Left column - allowed
+        "<div>"
+        "<div style='font-family:Share Tech Mono,monospace; font-size:10px; letter-spacing:3px; "
+        "color:#00FFAA; margin-bottom:12px;'>✓ ALLOWED</div>"
+        "<ul style='list-style:none; padding:0; margin:0;'>"
+        "<li style='font-size:13px; color:#3A4A5A; padding:4px 0; border-bottom:1px solid #0D1117;'>📚 Academic subjects — science, math, history, literature</li>"
+        "<li style='font-size:13px; color:#3A4A5A; padding:4px 0; border-bottom:1px solid #0D1117;'>💻 Programming, coding help & debugging</li>"
+        "<li style='font-size:13px; color:#3A4A5A; padding:4px 0; border-bottom:1px solid #0D1117;'>🧠 AI, machine learning & data science concepts</li>"
+        "<li style='font-size:13px; color:#3A4A5A; padding:4px 0; border-bottom:1px solid #0D1117;'>📝 Writing, summarization & research assistance</li>"
+        "<li style='font-size:13px; color:#3A4A5A; padding:4px 0; border-bottom:1px solid #0D1117;'>📄 Document analysis — upload PDF, DOCX, XLSX, CSV</li>"
+        "<li style='font-size:13px; color:#3A4A5A; padding:4px 0;'>🎓 Exam prep, concept explanations & study guides</li>"
+        "</ul>"
+        "</div>"
+
+        # Right column - blocked
+        "<div>"
+        "<div style='font-family:Share Tech Mono,monospace; font-size:10px; letter-spacing:3px; "
+        "color:#FF4466; margin-bottom:12px;'>✕ NOT ALLOWED</div>"
+        "<ul style='list-style:none; padding:0; margin:0;'>"
+        "<li style='font-size:13px; color:#3A4A5A; padding:4px 0; border-bottom:1px solid #0D1117;'>🚫 Hacking, exploits, malware or cybercrime</li>"
+        "<li style='font-size:13px; color:#3A4A5A; padding:4px 0; border-bottom:1px solid #0D1117;'>🚫 Adult, violent or harmful content</li>"
+        "<li style='font-size:13px; color:#3A4A5A; padding:4px 0; border-bottom:1px solid #0D1117;'>🚫 Fraud, scams or illegal activities</li>"
+        "<li style='font-size:13px; color:#3A4A5A; padding:4px 0; border-bottom:1px solid #0D1117;'>🚫 Gambling or financial speculation</li>"
+        "<li style='font-size:13px; color:#3A4A5A; padding:4px 0; border-bottom:1px solid #0D1117;'>🚫 Dark web, anonymous tools or bypassing security</li>"
+        "<li style='font-size:13px; color:#3A4A5A; padding:4px 0;'>🚫 Anything unrelated to learning or academics</li>"
+        "</ul>"
+        "</div>"
+
+        "</div>"
+
+        "<div style='margin-top:20px; padding-top:16px; border-top:1px solid #1C2A3A; "
+        "font-family:Share Tech Mono,monospace; font-size:9px; color:#1C2A3A; letter-spacing:2px;'>"
+        "NIARAD IS AN ACADEMIC AI ASSISTANT — RESPONSES ARE RESTRICTED TO EDUCATIONAL CONTENT ONLY"
+        "</div>"
+
+        "</div>",
+        unsafe_allow_html=True
+    )
+
 # ── Chat Interface ──
 else:
     if not st.session_state.messages:
         vault_status = (
             "◆ VAULT ONLINE — Document-aware mode active."
             if st.session_state.vault_has_docs
-            else "◇ VAULT EMPTY — General mode active. " + str(FREE_TIER_LIMIT) + " free messages available."
+            else "◇ VAULT EMPTY — Chatbot mode active. Upload docs for document-aware answers."
         )
         status_color = "#00FFAA" if st.session_state.vault_has_docs else "#FFC800"
         st.markdown(
@@ -350,64 +423,65 @@ else:
         with st.chat_message(msg["role"]):
             st.markdown(msg["content"], unsafe_allow_html=True)
 
-    free_exhausted = (
-        not st.session_state.vault_has_docs
-        and st.session_state.free_messages_used >= FREE_TIER_LIMIT
-    )
-
-    if free_exhausted:
-        st.warning(
-            "⚠ Free tier limit reached (" + str(FREE_TIER_LIMIT) + " messages). "
-            "Upload documents via the sidebar to continue with full access."
+    if llm is None:
+        st.error("⚠ No model loaded. Please select a model from the sidebar.")
+    else:
+        chat_placeholder = (
+            "Enter command..." if st.session_state.vault_has_docs
+            else "Ask me anything..."
         )
 
-    chat_placeholder = (
-        "Enter command..." if st.session_state.vault_has_docs
-        else "Free mode — " + str(max(0, FREE_TIER_LIMIT - st.session_state.free_messages_used)) + " messages left..."
-    )
+        if prompt := st.chat_input(chat_placeholder):
+            st.session_state.messages.append({"role": "user", "content": prompt})
+            with st.chat_message("user"):
+                st.markdown(prompt)
 
-    if prompt := st.chat_input(chat_placeholder, disabled=free_exhausted):
-        st.session_state.messages.append({"role": "user", "content": prompt})
-        with st.chat_message("user"):
-            st.markdown(prompt)
+            engine = get_system_engine()
+            db = engine["db"]()
 
-        engine = get_system_engine()
-        db = engine["db"]()
+            with st.chat_message("assistant"):
+                with st.spinner("Analyzing..."):
+                    try:
+                        if is_off_topic(prompt):
+                            # Hard block — no LLM call wasted
+                            response = (
+                                "⚠ NIARAD is focused on academic and educational topics. "
+                                "I cannot help with that. Feel free to ask me about your studies, "
+                                "concepts, coding, or any subject you're learning!"
+                            )
+                            st.markdown("<span class='mode-badge' style='background:rgba(255,68,102,0.12)!important;"
+                                "color:#FF4466!important;border:1px solid #FF446650!important;'>BLOCKED</span>",
+                                unsafe_allow_html=True)
+                            st.warning(response)
+                            full_response = response
 
-        with st.chat_message("assistant"):
-            with st.spinner("Analyzing..."):
-                try:
-                    if is_small_talk(prompt):
-                        chain = engine["small_talk_chain"]()
-                        response = chain.invoke(prompt)
-                        st.markdown("<span class='mode-badge mode-direct'>NIARAD</span>", unsafe_allow_html=True)
-                        st.markdown(response)
-                        full_response = response
+                        elif is_small_talk(prompt):
+                            chain = engine["small_talk_chain"](llm)
+                            response = chain.invoke(prompt)
+                            st.markdown("<span class='mode-badge mode-direct'>NIARAD</span>", unsafe_allow_html=True)
+                            st.markdown(response)
+                            full_response = response
 
-                    elif db is not None:
-                        mode = engine["router"](prompt)
-                        chain = engine["chain_gen"](db.as_retriever(), mode)
-                        response = chain.invoke(prompt)
-                        badge_class = "mode-extraction" if mode == "EXTRACTION" else "mode-summary"
-                        st.markdown("<span class='mode-badge " + badge_class + "'>" + mode + "</span>", unsafe_allow_html=True)
-                        st.markdown(response)
-                        full_response = "[" + mode + "]\n\n" + response
+                        elif db is not None:
+                            mode = engine["router"](prompt, llm)
+                            chain = engine["chain_gen"](db.as_retriever(), mode, llm)
+                            response = chain.invoke(prompt)
+                            badge_class = "mode-extraction" if mode == "EXTRACTION" else "mode-summary"
+                            st.markdown("<span class='mode-badge " + badge_class + "'>" + mode + "</span>", unsafe_allow_html=True)
+                            st.markdown(response)
+                            full_response = "[" + mode + "]\n\n" + response
 
-                    else:
-                        st.session_state.free_messages_used += 1
-                        remaining = FREE_TIER_LIMIT - st.session_state.free_messages_used
-                        chain = engine["direct_chain"]()
-                        response = chain.invoke(prompt)
-                        st.markdown("<span class='mode-badge mode-direct'>GENERAL MODE</span>", unsafe_allow_html=True)
-                        st.markdown(response)
-                        if remaining > 0:
-                            st.caption("🔓 " + str(remaining) + " free messages remaining. Upload docs for full document-aware answers.")
                         else:
-                            st.warning("⚠ Free tier limit reached. Upload documents to continue.")
-                        full_response = response
+                            # Full chatbot mode — no docs, no limits
+                            chain = engine["direct_chain"](llm)
+                            response = chain.invoke(prompt)
+                            st.markdown("<span class='mode-badge mode-direct'>CHATBOT</span>", unsafe_allow_html=True)
+                            st.markdown(response)
+                            st.caption("💡 Upload documents via the sidebar to enable document-aware answers.")
+                            full_response = response
 
-                except Exception as e:
-                    full_response = "⚠ Error: " + str(e)
-                    st.error(full_response)
+                    except Exception as e:
+                        full_response = "⚠ Error: " + str(e)
+                        st.error(full_response)
 
-        st.session_state.messages.append({"role": "assistant", "content": full_response})
+            st.session_state.messages.append({"role": "assistant", "content": full_response})
